@@ -4,7 +4,6 @@ import requests
 import logging
 import time
 from datetime import datetime
-import time
 from twilio.rest import Client
 import difflib
 
@@ -71,40 +70,40 @@ def send_text(text):
 	message.sid
 
 if __name__ == "__main__":
-        while True:
-            loop_start_time = time.time()
-            for plant in the_list:
-                try:
-                        r = requests.get(plant.url)
-                except requests.exceptions.ConnectionError as e:
-                        logging.info(e)
-                        send_text("unable to ping {}".format(plant.url))
-                        break
-                if r.text.lower().find(plant.check_string.lower()) == -1:
-                        logging.info(plant.return_phrase_success)
-                        if not plant.in_stock:
-                            send_text(plant.return_phrase_success)
-                            logging.info(r.text)
-                            plant.in_stock = True
-                else:
-                        logging.info(plant.return_phrase_fail)
+    while True:
+        loop_start_time = time.time()
+        for plant in the_list:
+            try:
+                r = requests.get(plant.url)
+            except requests.exceptions.ConnectionError as e:
+                logging.info(e)
+                send_text("unable to ping {}".format(plant.url))
+                break
+            if r.text.lower().find(plant.check_string.lower()) == -1:
+                logging.info(plant.return_phrase_success)
+                if not plant.in_stock:
+                    send_text(plant.return_phrase_success)
+                    logging.info(r.text)
+                    plant.in_stock = True
+            else:
+                logging.info(plant.return_phrase_fail)
 
-            now = datetime.now()
-            if now.hour == 22 and now.minute == 0:
-                in_stock = [plant.plant for plant in the_list if plant.in_stock]
-                not_stock = [plant.plant for plant in the_list if not plant.in_stock]
-                update_message = 'This is an update from plants for us messaging bot\n\n'
+        now = datetime.now()
+        if now.hour == 22 and now.minute == 0:
+            in_stock = [plant.plant for plant in the_list if plant.in_stock]
+            not_stock = [plant.plant for plant in the_list if not plant.in_stock]
+            update_message = 'This is an update from plants for us messaging bot\n\n'
 
-                if in_stock:
-                    update_message += 'Good news! Today {} was in stock and '.format(in_stock)
-                if not_stock:
-                    update_message += 'womp womp, {} are not in stock\n\n'.format(not_stock)
-                update_message += "we hope you will continue to use our service"
+            if in_stock:
+                update_message += 'Good news! Today {} was in stock and '.format(in_stock)
+            if not_stock:
+                update_message += 'womp womp, {} are not in stock\n\n'.format(not_stock)
+            update_message += "we hope you will continue to use our service"
 
-                send_text(update_message)  
+            send_text(update_message)  
 
 
-            sleep_time = max(0, 60 - (time.time() - loop_start_time))
-            logging.info("sleeping {} seconds".format(sleep_time))
-            time.sleep(sleep_time)
+        sleep_time = max(0, 60 - (time.time() - loop_start_time))
+        logging.info("sleeping {} seconds".format(sleep_time))
+        time.sleep(sleep_time)
 
