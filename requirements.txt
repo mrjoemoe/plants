@@ -1,2 +1,3 @@
 requests
 twilio
+aiohttp==3.6
