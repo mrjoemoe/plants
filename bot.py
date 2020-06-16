@@ -14,6 +14,8 @@ TWILIO_PHONE = os.environ.get("TWILIO_PHONE")
 JORDAN_PHONE = os.environ.get("PHONE_1")
 NANCY_PHONE = os.environ.get("PHONE_2")
 
+global send_time
+
 
 class User(object):
 
@@ -96,6 +98,14 @@ treubii = CheckParameters(
     'gabriellaplants',
     'count',
     )
+melano = CheckParameters(
+    'melano',
+    'https://www.logees.com/black-gold-philodendron-philodendron-melanochrysum-2181.html',
+    '0 in stock',
+    'logees',
+    'missing_string',
+    )
+
 the_list = [
             albo,
             ppp_logees,
@@ -104,6 +114,7 @@ the_list = [
             rio,
             jessenia,
             treubii,
+            melano,
 ]
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
@@ -132,6 +143,12 @@ def twilio_post(text, plant_lover):
 
 
 def send_text(text, critical=True):
+    global send_time
+    last_send = send_time
+    send_time = time.time()
+    if not critical and ((send_time - last_time) < 30 * 60):
+        logging.info(f"not sending {text},  not important")
+        return
     for plant_lover in users:
         while not twilio_post(text, plant_lover) and critical:
             logging.info("Unable to send critical message to {}, waiting 30 seconds and trying again".format(
@@ -139,6 +156,9 @@ def send_text(text, critical=True):
 
 
 if __name__ == "__main__":
+        global send_time
+        send_time = time.time() - 30 * 60  # set a default
+        logging.info("----- START -----")
         while True:
             loop_start_time = time.time()
             for plant in the_list:
@@ -146,32 +166,40 @@ if __name__ == "__main__":
                     r = requests.get(plant.url)
                 except requests.exceptions.ConnectionError as e:
                     logging.info(e)
-                    send_text("unable to ping {}".format(plant.url), False)
+                    send_text("unable to ping {}".format(plant.url), critical=False)
                     break
                 if plant.method == 'missing_string':
-                    if r.text.lower().find(plant.check_string.lower()) == -1:
-                        logging.info(plant.return_phrase_success)
-                        if not plant.in_stock:
-                            send_text(plant.return_phrase_success)
-                            logging.info(r.text)
-                            plant.in_stock = True
-                    else:
-                        logging.info(plant.return_phrase_fail)
+                    try:
+                        if r.text.lower().find(plant.check_string.lower()) == -1:
+                            logging.info(plant.return_phrase_success)
+                            if not plant.in_stock:
+                                send_text(plant.return_phrase_success)
+                                logging.info(r.text)
+                                plant.in_stock = True
+                        else:
+                            logging.info(plant.return_phrase_fail)
+                    except Exception as e:
+                        logging.info(f"error trying find missing string: {e}")
+                        send_text("exception caught trying to calculate missing string", critical=False)
                 elif plant.method == 'count':
-                    previous = plant.current
-                    plant.current = r.text.lower().count(plant.check_string.lower())
-                    if plant.current == 0:
-                        logging.info("plant count = 0 , setting current count to previous")
-                        plant.current = previous
-                    if previous >= 0 and (previous != plant.current):
-                        logging.info(plant.return_phrase_success)
-                        if not plant.in_stock:
-                            send_text(plant.return_phrase_success)
-                            logging.info(r.text)
-                            plant.in_stock = True
-                    else:
-                        logging.info(plant.return_phrase_fail)
-                    logging.info("  previous={}, current={}".format(previous, plant.current))
+                    try:
+                        previous = plant.current
+                        plant.current = r.text.lower().count(plant.check_string.lower())
+                        if plant.current == 0:
+                            logging.info("plant count = 0 , setting current count to previous")
+                            plant.current = previous
+                        if previous >= 0 and (previous != plant.current):
+                            logging.info(plant.return_phrase_success)
+                            if not plant.in_stock:
+                                send_text(plant.return_phrase_success)
+                                logging.info(r.text)
+                                plant.in_stock = True
+                        else:
+                            logging.info(plant.return_phrase_fail)
+                        logging.info("  previous={}, current={}".format(previous, plant.current))
+                    except Exception as e:
+                        logging.info(f"error trying count: {e}")
+                        send_text("exception caught trying to count", critical=False)
                 else:
                     logging.info('invalid method for {}'.format(plant.plant))
 

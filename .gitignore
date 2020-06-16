@@ -2,3 +2,5 @@
 venv/*
 *.log
 ._*
+log_archive/
+.idea/
