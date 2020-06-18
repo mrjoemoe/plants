@@ -109,7 +109,6 @@ melano = CheckParameters(
 the_list = [
             albo,
             ppp_logees,
-            ppp_gabriella,
             verrucosum,
             rio,
             jessenia,
@@ -144,15 +143,14 @@ def twilio_post(text, plant_lover):
 
 def send_text(text, critical=True):
     global send_time
-    last_send = send_time
+    last_time = send_time
     send_time = time.time()
     if not critical and ((send_time - last_time) < 30 * 60):
         logging.info(f"not sending {text},  not important")
         return
     for plant_lover in users:
         while not twilio_post(text, plant_lover) and critical:
-            logging.info("Unable to send critical message to {}, waiting 30 seconds and trying again".format(
-                plant_lover.name))
+            logging.info(f"Unable to send critical message to {plant_lover.name}, waiting 30 seconds and trying again")
 
 
 if __name__ == "__main__":
