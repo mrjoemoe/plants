@@ -1,8 +1,8 @@
+""" work in progress
+"""
+
 import logging
 from aiohttp import web, ClientSession
-
-
-
 
 
 logging.getLogger(__name__)
@@ -32,8 +32,6 @@ def main():
 	logging.info("server initialized")
 	print('server bh')
 	web.run_app(app)
-
-
 
 
 if __name__ == "__main__":

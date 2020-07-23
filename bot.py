@@ -6,6 +6,8 @@ from datetime import datetime
 import time
 from twilio.rest import Client
 import socket
+from fake_headers import Headers
+
 
 DEBUG = False
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
@@ -16,13 +18,18 @@ NANCY_PHONE = os.environ.get("PHONE_2")
 
 global send_time
 
+header = Headers(
+    browser="chrome",  # Generate only Chrome UA
+    os="osx",  # Generate ony Windows platform
+    headers=True  # generate misc headers
+)
 
 class User(object):
 
     def __init__(self, name, phone):
         self.name = name
         self.phone = phone
-        self.text_header = "Plant update for {}!!!\n\n".format(self.name)
+        self.text_header = f"Plant update for {self.name}!!!\n\n"
 
 
 class CheckParameters(object):
@@ -36,8 +43,8 @@ class CheckParameters(object):
         self.check_string = check_string
         self.shop = shop
         self.method = method
-        self.return_phrase_success = '{} in stock at {}'.format(self.plant, self.shop)
-        self.return_phrase_fail = '{} still out of stock at {}'.format(self.plant, self.shop)
+        self.return_phrase_success = f"{self.plant} in stock at {self.shop}"
+        self.return_phrase_fail = f"{self.plant} still out of stock at {self.shop}"
         self.in_stock = False
         self.current = -1
 
@@ -45,14 +52,14 @@ class CheckParameters(object):
 albo = CheckParameters(
     'albo monstera',
     'https://www.logees.com/variegated-mexican-breadfruit-monstera-deliciosa-variegata.html',
-    '0 in stock',
+    ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
     )
 ppp_logees = CheckParameters(
     'ppp_logees',
     'https://www.logees.com/philodendron-pink-princess-philodendron-erubescens.html',
-    '0 in stock',
+    ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
     )
@@ -80,7 +87,7 @@ ppp_gabriella = CheckParameters(
 verrucosum = CheckParameters(
     'p. verrucosum',
     'https://www.logees.com/ecuador-philodendron-philodendron-ventricosum.html',
-    '0 in stock',
+    ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
     )
@@ -101,9 +108,44 @@ treubii = CheckParameters(
 melano = CheckParameters(
     'melano',
     'https://www.logees.com/black-gold-philodendron-philodendron-melanochrysum-2181.html',
-    '0 in stock',
+    ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
+    )
+kerrii = CheckParameters(
+    'kerrii',
+    'https://www.gabriellaplants.com/products/4-hoya-kerri-reverse-variegated',
+    'in stock',
+    'gabriellaplants',
+    'count',
+    )
+monstera_peru = CheckParameters(
+    'monstera_peru',
+    'https://www.nsetropicals.com/product/monstera-sp-peru/',
+    'out of stock',
+    'nse_tropicals',
+    'count',
+    )
+rof = CheckParameters(
+    'ring_of_fire',
+    'https://www.nsetropicals.com/product/philodendron-ring-of-fire/',
+    'out of stock',
+    'nse_tropicals',
+    'count',
+    )
+red_syngonium = CheckParameters(
+    'red_syngonium',
+    'https://stevesleaves.com/product/syngonium-erythrophyllum-llano-carti-road/',
+    ['out of stock'],
+    'steves_leaves',
+    'missing_string',
+    )
+yellow_syngonium = CheckParameters(
+    'yellow_syngonium',
+    'https://www.gabriellaplants.com/collections/syngonium/products/4-variegated-nepthytis-emerald-gem-green-variegation',
+    'in stock',
+    'gabriellaplants',
+    'count',
     )
 
 the_list = [
@@ -111,10 +153,16 @@ the_list = [
             ppp_logees,
             verrucosum,
             rio,
-            jessenia,
-            treubii,
+            # jessenia,
+            # treubii,
             melano,
+            kerrii,
+            # monstera_peru,
+            # rof,
+            red_syngonium,
+            yellow_syngonium,
 ]
+
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
 users = [
@@ -125,18 +173,17 @@ users = [
 
 def twilio_post(text, plant_lover):
     message = client.messages.create(
-        body='{}{}'.format(plant_lover.text_header, text),
+        body=f"{plant_lover.text_header}{text}",
         from_=TWILIO_PHONE,
         to=plant_lover.phone
     )
     try:
         message.sid
     except socket.gaierror as address_error:
-        logging.info("unable to get address info sending text to {}\n{}".format(plant_lover.name,
-                                                                                address_error))
+        logging.info(f"unable to get address info sending text to {plant_lover.name}\n{address_error}")
         return False
     except Exception as exc:
-        logging.info("unable to send text: {}".format(exc))
+        logging.info(f"unable to send text: {exc}")
         return False
     return True
 
@@ -161,14 +208,26 @@ if __name__ == "__main__":
             loop_start_time = time.time()
             for plant in the_list:
                 try:
-                    r = requests.get(plant.url)
+                    headers = header.generate()
+                    r = requests.get(plant.url, headers)
                 except requests.exceptions.ConnectionError as e:
                     logging.info(e)
-                    send_text("unable to ping {}".format(plant.url), critical=False)
+                    send_text(f"unable to ping {plant.url}", critical=False)
                     break
+                except Exception as e:
+                    logging.info(f"unable to service request for {plant.plant} - {e}")
+                    next
                 if plant.method == 'missing_string':
                     try:
-                        if r.text.lower().find(plant.check_string.lower()) == -1:
+                        check_strings = plant.check_string.copy()
+                        check_strings.append("a timeout occurred")
+                        check_strings.append("error establishing a database connection")
+                        found = True
+                        for string in check_strings:
+                            if r.text.lower().find(string.lower()) != -1:
+                                found = False
+                                break
+                        if found:
                             logging.info(plant.return_phrase_success)
                             if not plant.in_stock:
                                 send_text(plant.return_phrase_success)
@@ -194,23 +253,23 @@ if __name__ == "__main__":
                                 plant.in_stock = True
                         else:
                             logging.info(plant.return_phrase_fail)
-                        logging.info("  previous={}, current={}".format(previous, plant.current))
+                        logging.info(f"  previous={previous}, current={plant.current}")
                     except Exception as e:
                         logging.info(f"error trying count: {e}")
                         send_text("exception caught trying to count", critical=False)
                 else:
-                    logging.info('invalid method for {}'.format(plant.plant))
+                    logging.info(f"invalid method for {plant.plant}")
 
             now = datetime.now()
             if DEBUG or ((now.hour == 22 or now.hour == 10 or now.hour == 16) and now.minute == 0):
                 in_stock = [plant.plant for plant in the_list if plant.in_stock]
                 not_stock = [plant.plant for plant in the_list if not plant.in_stock]
-                update_message = 'This is an update from plants for us messaging bot\n\n'
+                update_message = "This is an update from plants for us messaging bot\n\n"
 
                 if in_stock:
-                    update_message += 'Good news! {} was in stock and '.format(in_stock)
+                    update_message += f"Good news! {in_stock} was in stock and "
                 if not_stock:
-                    update_message += 'womp womp, {} are not in stock\n\n'.format(not_stock)
+                    update_message += f"womp womp, {not_stock} are not in stock\n\n"
                 update_message += "we hope you will continue to use our service"
                 send_text(update_message)
 
@@ -219,5 +278,5 @@ if __name__ == "__main__":
                     plant.in_stock = False
 
             sleep_time = max(0, 60 - (time.time() - loop_start_time))
-            logging.info("sleeping {} seconds".format(sleep_time))
+            logging.info(f"sleeping {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
