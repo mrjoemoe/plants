@@ -4,6 +4,7 @@ import logging
 import os
 from datetime import datetime
 import time
+import socket
 from twilio.rest import Client
 import socket
 from fake_headers import Headers
@@ -18,11 +19,6 @@ NANCY_PHONE = os.environ.get("PHONE_2")
 
 global send_time
 
-header = Headers(
-    browser="chrome",  # Generate only Chrome UA
-    os="osx",  # Generate ony Windows platform
-    headers=True  # generate misc headers
-)
 
 class User(object):
 
@@ -151,6 +147,7 @@ yellow_syngonium = CheckParameters(
 the_list = [
             albo,
             ppp_logees,
+            ppp_gabriella,
             verrucosum,
             rio,
             # jessenia,
@@ -171,7 +168,15 @@ users = [
 ]
 
 
+def no_internet():
+    return socket.gethostbyname(socket.gethostname()) == "127.0.0.1"
+
+
 def twilio_post(text, plant_lover):
+    if no_internet():
+        logging.info("unable to send text, no internet connection, sleeping 1 minute")
+        time.sleep(60 * 1)
+        return False
     message = client.messages.create(
         body=f"{plant_lover.text_header}{text}",
         from_=TWILIO_PHONE,
@@ -205,78 +210,84 @@ if __name__ == "__main__":
         send_time = time.time() - 30 * 60  # set a default
         logging.info("----- START -----")
         while True:
-            loop_start_time = time.time()
-            for plant in the_list:
-                try:
-                    headers = header.generate()
-                    r = requests.get(plant.url, headers)
-                except requests.exceptions.ConnectionError as e:
-                    logging.info(e)
-                    send_text(f"unable to ping {plant.url}", critical=False)
-                    break
-                except Exception as e:
-                    logging.info(f"unable to service request for {plant.plant} - {e}")
-                    next
-                if plant.method == 'missing_string':
-                    try:
-                        check_strings = plant.check_string.copy()
-                        check_strings.append("a timeout occurred")
-                        check_strings.append("error establishing a database connection")
-                        found = True
-                        for string in check_strings:
-                            if r.text.lower().find(string.lower()) != -1:
-                                found = False
-                                break
-                        if found:
-                            logging.info(plant.return_phrase_success)
-                            if not plant.in_stock:
-                                send_text(plant.return_phrase_success)
-                                logging.info(r.text)
-                                plant.in_stock = True
-                        else:
-                            logging.info(plant.return_phrase_fail)
-                    except Exception as e:
-                        logging.info(f"error trying find missing string: {e}")
-                        send_text("exception caught trying to calculate missing string", critical=False)
-                elif plant.method == 'count':
-                    try:
-                        previous = plant.current
-                        plant.current = r.text.lower().count(plant.check_string.lower())
-                        if plant.current == 0:
-                            logging.info("plant count = 0 , setting current count to previous")
-                            plant.current = previous
-                        if previous >= 0 and (previous != plant.current):
-                            logging.info(plant.return_phrase_success)
-                            if not plant.in_stock:
-                                send_text(plant.return_phrase_success)
-                                logging.info(r.text)
-                                plant.in_stock = True
-                        else:
-                            logging.info(plant.return_phrase_fail)
-                        logging.info(f"  previous={previous}, current={plant.current}")
-                    except Exception as e:
-                        logging.info(f"error trying count: {e}")
-                        send_text("exception caught trying to count", critical=False)
-                else:
-                    logging.info(f"invalid method for {plant.plant}")
-
-            now = datetime.now()
-            if DEBUG or ((now.hour == 22 or now.hour == 10 or now.hour == 16) and now.minute == 0):
-                in_stock = [plant.plant for plant in the_list if plant.in_stock]
-                not_stock = [plant.plant for plant in the_list if not plant.in_stock]
-                update_message = "This is an update from plants for us messaging bot\n\n"
-
-                if in_stock:
-                    update_message += f"Good news! {in_stock} was in stock and "
-                if not_stock:
-                    update_message += f"womp womp, {not_stock} are not in stock\n\n"
-                update_message += "we hope you will continue to use our service"
-                send_text(update_message)
-
-                # reset in_stock tickers
+            if no_internet():
+                logging.info("no internet connection, five minute rest")
+                time.sleep(5 * 60)
+            else:
+                loop_start_time = time.time()
                 for plant in the_list:
-                    plant.in_stock = False
+                    try:
+                        headers = header.generate()
+                        r = requests.get(plant.url, headers)
+                    except requests.exceptions.ConnectionError as e:
+                        logging.info(e)
+                        send_text(f"unable to ping {plant.url}", critical=False)
+                        break
+                    except Exception as e:
+                        logging.info(f"unable to service request for {plant.plant} - {e}")
+                        next
+                    if plant.method == 'missing_string':
+                        try:
+                            check_strings = plant.check_string.copy()
+                            check_strings.append("a timeout occurred")
+                            check_strings.append("error establishing a database connection")
+                            found = True
+                            for string in check_strings:
+                                # = -1 means did not find
+                                if r.text.lower().find(string.lower()) != -1:
+                                    logging.info(f"found '{string}', so {plant.plant} not in stock")
+                                    found = False
+                                    break
+                            if found:
+                                logging.info(plant.return_phrase_success)
+                                if not plant.in_stock:
+                                    send_text(plant.return_phrase_success)
+                                    logging.info(r.text)
+                                    plant.in_stock = True
+                            else:
+                                logging.info(plant.return_phrase_fail)
+                        except Exception as e:
+                            logging.info(f"error trying find missing string: {e}")
+                            send_text("exception caught trying to calculate missing string", critical=False)
+                    elif plant.method == 'count':
+                        try:
+                            previous = plant.current
+                            plant.current = r.text.lower().count(plant.check_string.lower())
+                            if plant.current == 0:
+                                logging.info("plant count = 0 , setting current count to previous")
+                                plant.current = previous
+                            if previous >= 0 and (previous != plant.current):
+                                logging.info(plant.return_phrase_success)
+                                if not plant.in_stock:
+                                    send_text(plant.return_phrase_success)
+                                    logging.info(r.text)
+                                    plant.in_stock = True
+                            else:
+                                logging.info(plant.return_phrase_fail)
+                            logging.info(f"  previous={previous}, current={plant.current}")
+                        except Exception as e:
+                            logging.info(f"error trying count: {e}")
+                            send_text("exception caught trying to count", critical=False)
+                    else:
+                        logging.info(f"invalid method for {plant.plant}")
 
-            sleep_time = max(0, 60 - (time.time() - loop_start_time))
-            logging.info(f"sleeping {sleep_time:.2f} seconds")
-            time.sleep(sleep_time)
+                now = datetime.now()
+                if DEBUG or ((now.hour == 22 or now.hour == 10 or now.hour == 16) and now.minute == 0):
+                    in_stock = [plant.plant for plant in the_list if plant.in_stock]
+                    not_stock = [plant.plant for plant in the_list if not plant.in_stock]
+                    update_message = "This is an update from plants for us messaging bot\n\n"
+
+                    if in_stock:
+                        update_message += f"Good news! {in_stock} was in stock and "
+                    if not_stock:
+                        update_message += f"womp womp, {not_stock} are not in stock\n\n"
+                    update_message += "we hope you will continue to use our service"
+                    send_text(update_message)
+
+                    # reset in_stock tickers
+                    for plant in the_list:
+                        plant.in_stock = False
+
+                sleep_time = max(0, 60 - (time.time() - loop_start_time))
+                logging.info(f"sleeping {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
