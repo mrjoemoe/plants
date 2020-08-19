@@ -4,3 +4,4 @@ venv/*
 ._*
 log_archive/
 .idea/
+test.py

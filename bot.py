@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import requests
 import logging
 import os
@@ -18,8 +17,9 @@ JORDAN_PHONE = os.environ.get("PHONE_1")
 NANCY_PHONE = os.environ.get("PHONE_2")
 
 global send_time
+send_time = time.time() - 30 * 60  # set a default
 
-
+# shorturl.at/dwBU3
 class User(object):
 
     def __init__(self, name, phone):
@@ -30,7 +30,7 @@ class User(object):
 
 class CheckParameters(object):
 
-    def __init__(self, plant, url, check_string, shop, method):
+    def __init__(self, plant, url, check_string, shop, method, short_url, force=False):
         """
         method = 'count', 'missing_string'
         """
@@ -39,10 +39,11 @@ class CheckParameters(object):
         self.check_string = check_string
         self.shop = shop
         self.method = method
-        self.return_phrase_success = f"{self.plant} in stock at {self.shop}"
+        self.return_phrase_success = f"{self.plant} in stock at {self.shop} {short_url}"
         self.return_phrase_fail = f"{self.plant} still out of stock at {self.shop}"
         self.in_stock = False
         self.current = -1
+        self.force = force  # force return in stock
 
 
 albo = CheckParameters(
@@ -51,6 +52,7 @@ albo = CheckParameters(
     ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
+    'https://bit.ly/3kzsQpm',
     )
 ppp_logees = CheckParameters(
     'ppp_logees',
@@ -58,6 +60,7 @@ ppp_logees = CheckParameters(
     ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
+    'https://bit.ly/3gMCYcd',
     )
 rio = CheckParameters(
     'rio',
@@ -65,6 +68,7 @@ rio = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/2DRbPX2',
     )
 silver_sword = CheckParameters(
     'silver_sword',
@@ -72,6 +76,7 @@ silver_sword = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/33T3H3j',
     )
 ppp_gabriella = CheckParameters(
     'ppp_gabriella',
@@ -79,6 +84,7 @@ ppp_gabriella = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/30LeL0r',
     )
 verrucosum = CheckParameters(
     'p. verrucosum',
@@ -86,6 +92,7 @@ verrucosum = CheckParameters(
     ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
+    'https://bit.ly/2DTVOPS',
     )
 jessenia = CheckParameters(
     'jessenia',
@@ -93,6 +100,7 @@ jessenia = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/2XNHyPI',
     )
 treubii = CheckParameters(
     'treubii',
@@ -100,6 +108,7 @@ treubii = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/33LE5Fp',
     )
 melano = CheckParameters(
     'melano',
@@ -107,6 +116,7 @@ melano = CheckParameters(
     ['0 in stock', '0  in stock'],
     'logees',
     'missing_string',
+    'https://bit.ly/3fLXXKT',
     )
 kerrii = CheckParameters(
     'kerrii',
@@ -114,6 +124,7 @@ kerrii = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/3iuQrWE',
     )
 monstera_peru = CheckParameters(
     'monstera_peru',
@@ -121,6 +132,7 @@ monstera_peru = CheckParameters(
     'out of stock',
     'nse_tropicals',
     'count',
+    'https://bit.ly/3add1A0',
     )
 rof = CheckParameters(
     'ring_of_fire',
@@ -128,6 +140,7 @@ rof = CheckParameters(
     'out of stock',
     'nse_tropicals',
     'count',
+    'https://bit.ly/3gLMz35',
     )
 red_syngonium = CheckParameters(
     'red_syngonium',
@@ -135,6 +148,7 @@ red_syngonium = CheckParameters(
     ['out of stock'],
     'steves_leaves',
     'missing_string',
+    'https://bit.ly/3islamV',
     )
 yellow_syngonium = CheckParameters(
     'yellow_syngonium',
@@ -142,6 +156,23 @@ yellow_syngonium = CheckParameters(
     'in stock',
     'gabriellaplants',
     'count',
+    'https://bit.ly/3kxb1Ya',
+    )
+el_choco_red = CheckParameters(
+    'el_choco_red',
+    'https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PRE2244-003',
+    ['out of stock'],
+    'ecuagenera',
+    'missing_string',
+    'https://bit.ly/3kF5yib',
+    )
+queen_anthurium = CheckParameters(
+    'queen_anthurium',
+    'https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PIE2101',
+    ['out of stock'],
+    'ecuagenera',
+    'missing_string',
+    'https://bit.ly/31E4rqa',
     )
 
 the_list = [
@@ -158,6 +189,8 @@ the_list = [
             # rof,
             red_syngonium,
             yellow_syngonium,
+            el_choco_red,
+            queen_anthurium,
 ]
 
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
@@ -206,8 +239,6 @@ def send_text(text, critical=True):
 
 
 if __name__ == "__main__":
-        global send_time
-        send_time = time.time() - 30 * 60  # set a default
         logging.info("----- START -----")
         while True:
             if no_internet():
@@ -216,9 +247,13 @@ if __name__ == "__main__":
             else:
                 loop_start_time = time.time()
                 for plant in the_list:
+                    if plant.force:
+                        logging.info(f"sending found text for {plant.plant}")
+                        send_text(plant.return_phrase_success)
+                        next
                     try:
-                        headers = header.generate()
-                        r = requests.get(plant.url, headers)
+                        header = Headers(headers=False).generate()
+                        r = requests.get(plant.url, header)
                     except requests.exceptions.ConnectionError as e:
                         logging.info(e)
                         send_text(f"unable to ping {plant.url}", critical=False)
@@ -231,6 +266,9 @@ if __name__ == "__main__":
                             check_strings = plant.check_string.copy()
                             check_strings.append("a timeout occurred")
                             check_strings.append("error establishing a database connection")
+                            check_strings.append("502 Bad Gateway")
+                            check_strings.append("504: Gateway time-out")
+                            check_strings.append("502: Bad gateway")
                             found = True
                             for string in check_strings:
                                 # = -1 means did not find
