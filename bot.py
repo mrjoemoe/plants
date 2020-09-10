@@ -15,25 +15,24 @@ TWILIO_SID = os.environ.get("TWILIO_SID")
 TWILIO_PHONE = os.environ.get("TWILIO_PHONE")
 JORDAN_PHONE = os.environ.get("PHONE_1")
 NANCY_PHONE = os.environ.get("PHONE_2")
+NANXI_PHONE = os.environ.get("PHONE_3")
 
 global send_time
 send_time = time.time() - 30 * 60  # set a default
 
-# shorturl.at/dwBU3
-class User(object):
 
+class User(object):
     def __init__(self, name, phone):
         self.name = name
         self.phone = phone
         self.text_header = f"Plant update for {self.name}!!!\n\n"
 
 
-class CheckParameters(object):
+SUPER_USERS = [User("Jordan", JORDAN_PHONE), User("Nancy", NANCY_PHONE)]
 
-    def __init__(self, plant, url, check_string, shop, method, short_url, force=False):
-        """
-        method = 'count', 'missing_string'
-        """
+
+class CheckParameters(object):
+    def __init__(self, plant, url, check_string, shop, method, short_url, recipients=SUPER_USERS, force=False):
         self.plant = plant
         self.url = url
         self.check_string = check_string
@@ -43,136 +42,138 @@ class CheckParameters(object):
         self.return_phrase_fail = f"{self.plant} still out of stock at {self.shop}"
         self.in_stock = False
         self.current = -1
+        self.recipients = recipients
         self.force = force  # force return in stock
 
 
 albo = CheckParameters(
-    'albo monstera',
-    'https://www.logees.com/variegated-mexican-breadfruit-monstera-deliciosa-variegata.html',
-    ['0 in stock', '0  in stock'],
-    'logees',
-    'missing_string',
-    'https://bit.ly/3kzsQpm',
+    plant='albo monstera',
+    url='https://www.logees.com/variegated-mexican-breadfruit-monstera-deliciosa-variegata.html',
+    check_string=['0 in stock', '0  in stock'],
+    shop='logees',
+    method='missing_string',
+    short_url='https://bit.ly/3kzsQpm',
     )
 ppp_logees = CheckParameters(
-    'ppp_logees',
-    'https://www.logees.com/philodendron-pink-princess-philodendron-erubescens.html',
-    ['0 in stock', '0  in stock'],
-    'logees',
-    'missing_string',
-    'https://bit.ly/3gMCYcd',
+    plant='ppp_logees',
+    url='https://www.logees.com/philodendron-pink-princess-philodendron-erubescens.html',
+    check_string=['0 in stock', '0  in stock'],
+    shop='logees',
+    method='missing_string',
+    short_url='https://bit.ly/3gMCYcd',
     )
 rio = CheckParameters(
-    'rio',
-    'https://www.gabriellaplants.com/collections/philodendron/products/rio-philodendron-4-original-consistent-collectors-version-of-brasil-philodendron-silver-variegation',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/2DRbPX2',
+    plant='rio',
+    url='https://www.gabriellaplants.com/collections/philodendron/products/rio-philodendron-4-original-consistent-collectors-version-of-brasil-philodendron-silver-variegation',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/2DRbPX2',
     )
 silver_sword = CheckParameters(
-    'silver_sword',
-    'https://www.gabriellaplants.com/collections/philodendron/products/4-silver-sword-philodendron-philodendron-hastatum',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/33T3H3j',
+    plant='silver_sword',
+    url='https://www.gabriellaplants.com/collections/philodendron/products/4-silver-sword-philodendron-philodendron-hastatum',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/33T3H3j',
     )
 ppp_gabriella = CheckParameters(
-    'ppp_gabriella',
-    'https://www.gabriellaplants.com/products/4-pink-princess-philodendron',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/30LeL0r',
+    plant='ppp_gabriella',
+    url='https://www.gabriellaplants.com/products/4-pink-princess-philodendron',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/30LeL0r',
+    recipients=[User("Jordan", JORDAN_PHONE), User("Nancy", NANCY_PHONE), User("Nanxi", NANXI_PHONE)],
     )
 verrucosum = CheckParameters(
-    'p. verrucosum',
-    'https://www.logees.com/ecuador-philodendron-philodendron-ventricosum.html',
-    ['0 in stock', '0  in stock'],
-    'logees',
-    'missing_string',
-    'https://bit.ly/2DTVOPS',
+    plant='p. verrucosum',
+    url='https://www.logees.com/ecuador-philodendron-philodendron-ventricosum.html',
+    check_string=['0 in stock', '0  in stock'],
+    shop='logees',
+    method='missing_string',
+    short_url='https://bit.ly/2DTVOPS',
     )
 jessenia = CheckParameters(
-    'jessenia',
-    'https://www.gabriellaplants.com/collections/pothos/products/4-jessenia-pothos',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/2XNHyPI',
+    plant='jessenia',
+    url='https://www.gabriellaplants.com/collections/pothos/products/4-jessenia-pothos',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/2XNHyPI',
     )
 treubii = CheckParameters(
-    'treubii',
-    'https://www.gabriellaplants.com/collections/scindapsus-1/products/3-scindapsus-treubii-moonlight',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/33LE5Fp',
+    plant='treubii',
+    url='https://www.gabriellaplants.com/collections/scindapsus-1/products/3-scindapsus-treubii-moonlight',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='htstps://bit.ly/33LE5Fp',
     )
 melano = CheckParameters(
-    'melano',
-    'https://www.logees.com/black-gold-philodendron-philodendron-melanochrysum-2181.html',
-    ['0 in stock', '0  in stock'],
-    'logees',
-    'missing_string',
-    'https://bit.ly/3fLXXKT',
+    plant='melano',
+    url='https://www.logees.com/black-gold-philodendron-philodendron-melanochrysum-2181.html',
+    check_string=['0 in stock', '0  in stock'],
+    shop='logees',
+    method='missing_string',
+    short_url='https://bit.ly/3fLXXKT',
     )
 kerrii = CheckParameters(
-    'kerrii',
-    'https://www.gabriellaplants.com/products/4-hoya-kerri-reverse-variegated',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/3iuQrWE',
+    plant='kerrii',
+    url='https://www.gabriellaplants.com/products/4-hoya-kerri-reverse-variegated',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/3iuQrWE',
     )
 monstera_peru = CheckParameters(
-    'monstera_peru',
-    'https://www.nsetropicals.com/product/monstera-sp-peru/',
-    'out of stock',
-    'nse_tropicals',
-    'count',
-    'https://bit.ly/3add1A0',
+    plant='monstera_peru',
+    url='https://www.nsetropicals.com/product/monstera-sp-peru/',
+    check_string='out of stock',
+    shop='nse_tropicals',
+    method='count',
+    short_url='https://bit.ly/3add1A0',
     )
 rof = CheckParameters(
-    'ring_of_fire',
-    'https://www.nsetropicals.com/product/philodendron-ring-of-fire/',
-    'out of stock',
-    'nse_tropicals',
-    'count',
-    'https://bit.ly/3gLMz35',
+    plant='ring_of_fire',
+    url='https://www.nsetropicals.com/product/philodendron-ring-of-fire/',
+    check_string='out of stock',
+    shop='nse_tropicals',
+    method='count',
+    short_url='https://bit.ly/3gLMz35',
     )
 red_syngonium = CheckParameters(
-    'red_syngonium',
-    'https://stevesleaves.com/product/syngonium-erythrophyllum-llano-carti-road/',
-    ['out of stock'],
-    'steves_leaves',
-    'missing_string',
-    'https://bit.ly/3islamV',
+    plant='red_syngonium',
+    url='https://stevesleaves.com/product/syngonium-erythrophyllum-llano-carti-road/',
+    check_string=['out of stock'],
+    shop='steves_leaves',
+    method='missing_string',
+    short_url='https://bit.ly/3islamV',
     )
 yellow_syngonium = CheckParameters(
-    'yellow_syngonium',
-    'https://www.gabriellaplants.com/collections/syngonium/products/4-variegated-nepthytis-emerald-gem-green-variegation',
-    'in stock',
-    'gabriellaplants',
-    'count',
-    'https://bit.ly/3kxb1Ya',
+    plant='yellow_syngonium',
+    url='https://www.gabriellaplants.com/collections/syngonium/products/4-variegated-nepthytis-emerald-gem-green-variegation',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/3kxb1Ya',
     )
 el_choco_red = CheckParameters(
-    'el_choco_red',
-    'https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PRE2244-003',
-    ['out of stock'],
-    'ecuagenera',
-    'missing_string',
-    'https://bit.ly/3kF5yib',
+    plant='el_choco_red',
+    url='https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PRE2244-003',
+    check_string=['out of stock'],
+    shop='ecuagenera',
+    method='missing_string',
+    short_url='https://bit.ly/3kF5yib',
     )
 queen_anthurium = CheckParameters(
-    'queen_anthurium',
-    'https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PIE2101',
-    ['out of stock'],
-    'ecuagenera',
-    'missing_string',
-    'https://bit.ly/31E4rqa',
+    plant='queen_anthurium',
+    url='https://www.ecuagenera.com/epages/ecuagenera.sf/en_US/?ObjectPath=/Shops/ecuagenera/Products/PIE2101',
+    check_string=['out of stock'],
+    shop='ecuagenera',
+    method='missing_string',
+    short_url='https://bit.ly/31E4rqa',
     )
 
 the_list = [
@@ -187,7 +188,7 @@ the_list = [
             kerrii,
             # monstera_peru,
             # rof,
-            red_syngonium,
+            # red_syngonium,
             yellow_syngonium,
             el_choco_red,
             queen_anthurium,
@@ -195,10 +196,6 @@ the_list = [
 
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
-users = [
-    User("Jordan", JORDAN_PHONE),
-    User("Nancy", NANCY_PHONE),
-]
 
 
 def no_internet():
@@ -226,14 +223,15 @@ def twilio_post(text, plant_lover):
     return True
 
 
-def send_text(text, critical=True):
+def send_text(text, critical=True, recipients=SUPER_USERS):
     global send_time
     last_time = send_time
     send_time = time.time()
     if not critical and ((send_time - last_time) < 30 * 60):
         logging.info(f"not sending {text},  not important")
         return
-    for plant_lover in users:
+    for plant_lover in recipients:
+        logging.info(f"sending message to {plant_lover.name}")
         while not twilio_post(text, plant_lover) and critical:
             logging.info(f"Unable to send critical message to {plant_lover.name}, waiting 30 seconds and trying again")
 
@@ -247,9 +245,10 @@ if __name__ == "__main__":
             else:
                 loop_start_time = time.time()
                 for plant in the_list:
+                    # debug line
                     if plant.force:
                         logging.info(f"sending found text for {plant.plant}")
-                        send_text(plant.return_phrase_success)
+                        send_text(plant.return_phrase_success, recipients=plant.recipients)
                         next
                     try:
                         header = Headers(headers=False).generate()
@@ -279,7 +278,7 @@ if __name__ == "__main__":
                             if found:
                                 logging.info(plant.return_phrase_success)
                                 if not plant.in_stock:
-                                    send_text(plant.return_phrase_success)
+                                    send_text(plant.return_phrase_success, recipients=plant.recipients)
                                     logging.info(r.text)
                                     plant.in_stock = True
                             else:
@@ -297,7 +296,7 @@ if __name__ == "__main__":
                             if previous >= 0 and (previous != plant.current):
                                 logging.info(plant.return_phrase_success)
                                 if not plant.in_stock:
-                                    send_text(plant.return_phrase_success)
+                                    send_text(plant.return_phrase_success, recipients=plant.recipients)
                                     logging.info(r.text)
                                     plant.in_stock = True
                             else:
