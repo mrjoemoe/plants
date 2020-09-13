@@ -1,3 +1,4 @@
+import sys
 import requests
 import logging
 import os
@@ -9,13 +10,17 @@ import socket
 from fake_headers import Headers
 
 
-DEBUG = False
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
 TWILIO_SID = os.environ.get("TWILIO_SID")
 TWILIO_PHONE = os.environ.get("TWILIO_PHONE")
 JORDAN_PHONE = os.environ.get("PHONE_1")
 NANCY_PHONE = os.environ.get("PHONE_2")
 NANXI_PHONE = os.environ.get("PHONE_3")
+
+# very lazy way to turn on debug logging, if any arg is passed to script debug logging is enabled
+LOG_LEVEL = logging.DEBUG if len(sys.argv) >= 2 else logging.INFO
+SHOW_URL_TEXT_RETURN = True if len(sys.argv) >= 2 else False
+SEND_UPDATE_TEXT_EVERY_ITER = False
 
 global send_time
 send_time = time.time() - 30 * 60  # set a default
@@ -33,6 +38,16 @@ SUPER_USERS = [User("Jordan", JORDAN_PHONE), User("Nancy", NANCY_PHONE)]
 
 class CheckParameters(object):
     def __init__(self, plant, url, check_string, shop, method, short_url, recipients=SUPER_USERS, force=False):
+        """
+        plant: <str> name of plant
+        url: <str> url to plant website
+        check_string: <str> or <List> check_string to look for in return text from url
+        shop: <str> name of plant shop
+        method: <str> 'missing_string' or 'count'
+        short_url: <str> url to send in text notification
+        recipients: <List of Users> to send text notification on plant find
+        force: <Bool> if True always send 'plant found' text
+        """
         self.plant = plant
         self.url = url
         self.check_string = check_string
@@ -43,7 +58,7 @@ class CheckParameters(object):
         self.in_stock = False
         self.current = -1
         self.recipients = recipients
-        self.force = force  # force return in stock
+        self.force = force
 
 
 albo = CheckParameters(
@@ -175,6 +190,31 @@ queen_anthurium = CheckParameters(
     method='missing_string',
     short_url='https://bit.ly/31E4rqa',
     )
+hoya_dekya_3 = CheckParameters(
+    plant='hoya_dekya_3',
+    url='https://www.gabriellaplants.com/products/3-hoya-deykei',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/3bKhSt8',
+    )
+hoya_dekya_4 = CheckParameters(
+    plant='hoya_dekya_4',
+    url='https://www.gabriellaplants.com/products/4-hoya-deykei',
+    check_string='in stock',
+    shop='gabriellaplants',
+    method='count',
+    short_url='https://bit.ly/3bPTWou',
+    )
+hoya_black = CheckParameters(
+    plant='hoya_black',
+    url='https://gardinonursery.com/product/hoya-krohniana-black-leaves-epc-943-2/',
+    check_string='in stock',
+    shop='gardinonursery',
+    method='count',
+    short_url='https://bit.ly/32p4SGn',
+    ) 
+
 
 the_list = [
             albo,
@@ -192,9 +232,12 @@ the_list = [
             yellow_syngonium,
             el_choco_red,
             queen_anthurium,
+            hoya_dekya_3,
+            hoya_dekya_4,
+            hoya_black,
 ]
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=LOG_LEVEL)
 client = Client(TWILIO_SID, TWILIO_AUTH_TOKEN)
 
 
@@ -260,6 +303,8 @@ if __name__ == "__main__":
                     except Exception as e:
                         logging.info(f"unable to service request for {plant.plant} - {e}")
                         next
+                    logging.debug(f"PLANT: {plant.plant}")
+                    logging.debug(r.text)
                     if plant.method == 'missing_string':
                         try:
                             check_strings = plant.check_string.copy()
@@ -290,10 +335,9 @@ if __name__ == "__main__":
                         try:
                             previous = plant.current
                             plant.current = r.text.lower().count(plant.check_string.lower())
-                            if plant.current == 0:
-                                logging.info("plant count = 0 , setting current count to previous")
-                                plant.current = previous
-                            if previous >= 0 and (previous != plant.current):
+                            if previous == -1:
+                                logging.info(f"first iteration for {plant.plant}, ignoring count")
+                            elif previous >= 0 and (previous != plant.current):
                                 logging.info(plant.return_phrase_success)
                                 if not plant.in_stock:
                                     send_text(plant.return_phrase_success, recipients=plant.recipients)
@@ -309,7 +353,8 @@ if __name__ == "__main__":
                         logging.info(f"invalid method for {plant.plant}")
 
                 now = datetime.now()
-                if DEBUG or ((now.hour == 22 or now.hour == 10 or now.hour == 16) and now.minute == 0):
+                if (SEND_UPDATE_TEXT_EVERY_ITER or 
+                    ((now.hour == 22 or now.hour == 10 or now.hour == 16) and now.minute == 0)):
                     in_stock = [plant.plant for plant in the_list if plant.in_stock]
                     not_stock = [plant.plant for plant in the_list if not plant.in_stock]
                     update_message = "This is an update from plants for us messaging bot\n\n"
